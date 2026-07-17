@@ -1,2 +1,2 @@
-# cryptofinance
-cryptofinance
+# CryptoSentinal
+CryptoSentinal
