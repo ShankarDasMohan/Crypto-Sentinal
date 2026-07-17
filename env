@@ -1,0 +1,12 @@
+KAFKA_BROKER=localhost:9092
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=cryptosentinel
+POSTGRES_USER=csuser
+POSTGRES_PASSWORD=cspass
+MLFLOW_TRACKING_URI=http://localhost:5000
+
+# Deferred to v2 (leave blank for now):
+# NEWSAPI_KEY=
+# ALPHAVANTAGE_KEY=
+# COINGECKO_KEY=
