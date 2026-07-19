@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: fct_features
+    description: "One row per symbol per window, joining all 4 feature signals"
+    columns:
+      - name: symbol
+        description: "Trading pair"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['btcusdt', 'ethusdt']
+
+      - name: window_start
+        description: "Start timestamp of the feature window"
+        tests:
+          - not_null
+
+      - name: price_velocity
+        description: "Rate of change per 1-min tumbling window"
+        tests:
+          - not_null
+
+      - name: volume_zscore
+        description: "Z-score of volume vs 1-hr sliding window mean"
+        tests:
+          - not_null
+
+      - name: spread_score
+        description: "Bid-ask spread anomaly score"
+        tests:
+          - not_null
+
+      - name: trade_frequency
+        description: "Count of trades per 10-sec window"
+        tests:
+          - not_null
+
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - symbol
+            - window_start

@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw tables landed directly by the Kafka consumer"
+    schema: public
+    tables:
+      - name: raw_trades
+        description: "Raw tick-level trades from Binance WebSocket, one row per trade event"
+        columns:
+          - name: id
+            description: "Auto-increment primary key"
+          - name: symbol
+            description: "Trading pair, e.g. btcusdt"
+          - name: price
+            description: "Trade price"
+          - name: quantity
+            description: "Trade quantity"
+          - name: trade_time
+            description: "Exchange-reported trade timestamp"
+          - name: is_buyer_mm
+            description: "Whether the buyer is the market maker"
+          - name: trade_id
+            description: "Binance-assigned trade ID"

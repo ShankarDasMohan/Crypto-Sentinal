@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: stg_trades
+    description: "Cleaned raw trades: deduped, typed, filtered to BTC/USDT and ETH/USDT"
+    columns:
+      - name: trade_id
+        description: "Binance-assigned trade ID"
+        tests:
+          - not_null
+          - unique
+
+      - name: symbol
+        description: "Trading pair"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['btcusdt', 'ethusdt']
+
+      - name: price
+        description: "Trade price"
+        tests:
+          - not_null
+
+      - name: quantity
+        description: "Trade quantity"
+        tests:
+          - not_null
+
+      - name: trade_time
+        description: "Exchange-reported trade timestamp"
+        tests:
+          - not_null
+
+      - name: is_buyer_mm
+        description: "Whether the buyer is the market maker"
+        tests:
+          - not_null
