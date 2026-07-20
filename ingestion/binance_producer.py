@@ -20,9 +20,14 @@ def on_message(ws, message):
 def on_error(ws, error):
     print(f"WS Error: {error}")
 
+shutdown_requested = False
+
 def on_close(ws, *args):
-    print("WS closed — reconnecting...")
-    run()
+    if shutdown_requested:
+        print("WS closed — shutting down.")
+    else:
+        print("WS closed unexpectedly — reconnecting...")
+        run()
 
 def run():
     streams = "/".join([f"{s}@trade" for s in SYMBOLS])
@@ -33,7 +38,13 @@ def run():
         on_error=on_error,
         on_close=on_close
     )
-    ws.run_forever()
+    try:
+        ws.run_forever()
+    except KeyboardInterrupt:
+        global shutdown_requested
+        shutdown_requested = True
+        ws.close()
+        print("Interrupted — closing WebSocket and exiting.")
 
 if __name__ == "__main__":
     run()
