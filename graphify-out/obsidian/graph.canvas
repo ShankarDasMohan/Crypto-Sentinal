@@ -1,0 +1,398 @@
+{
+  "nodes": [
+    {
+      "id": "g0",
+      "type": "group",
+      "label": "Community 0",
+      "x": 0,
+      "y": 0,
+      "width": 660,
+      "height": 400,
+      "color": "1"
+    },
+    {
+      "id": "n_ingestion_binance_producer",
+      "type": "file",
+      "file": "binance_producer.py.md",
+      "x": 20,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_ingestion_binance_producer_on_close",
+      "type": "file",
+      "file": "on_close().md",
+      "x": 220,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_ingestion_binance_producer_on_error",
+      "type": "file",
+      "file": "on_error().md",
+      "x": 420,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_ingestion_binance_producer_on_message",
+      "type": "file",
+      "file": "on_message().md",
+      "x": 20,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_ingestion_binance_producer_run",
+      "type": "file",
+      "file": "run().md",
+      "x": 220,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g1",
+      "type": "group",
+      "label": "Community 1",
+      "x": 740,
+      "y": 0,
+      "width": 660,
+      "height": 400,
+      "color": "2"
+    },
+    {
+      "id": "n_spark_features_rationale_7",
+      "type": "file",
+      "file": "Feature 1 rate of change of price over a window. prices ordered list of\u2026.md",
+      "x": 760,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_spark_features_rationale_19",
+      "type": "file",
+      "file": "Feature 2 z-score of current volume vs a rolling historical window (e.g. 1hr\u2026.md",
+      "x": 960,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_spark_features",
+      "type": "file",
+      "file": "features.py.md",
+      "x": 1160,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_spark_features_price_velocity",
+      "type": "file",
+      "file": "price_velocity().md",
+      "x": 760,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_spark_features_volume_surge_zscore",
+      "type": "file",
+      "file": "volume_surge_zscore().md",
+      "x": 960,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g2",
+      "type": "group",
+      "label": "Community 2",
+      "x": 1480,
+      "y": 0,
+      "width": 600,
+      "height": 400,
+      "color": "3"
+    },
+    {
+      "id": "n_kafka_consumer",
+      "type": "file",
+      "file": "consumer.py.md",
+      "x": 1500,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_kafka_consumer_get_conn",
+      "type": "file",
+      "file": "get_conn().md",
+      "x": 1700,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_kafka_consumer_run",
+      "type": "file",
+      "file": "run()_1.md",
+      "x": 1500,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g3",
+      "type": "group",
+      "label": "Community 3",
+      "x": 0,
+      "y": 480,
+      "width": 600,
+      "height": 400,
+      "color": "4"
+    },
+    {
+      "id": "n_spark_streaming_job_main",
+      "type": "file",
+      "file": "main().md",
+      "x": 20,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_spark_streaming_job",
+      "type": "file",
+      "file": "streaming_job.py.md",
+      "x": 220,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_spark_streaming_job_write_batch_to_postgres",
+      "type": "file",
+      "file": "write_batch_to_postgres().md",
+      "x": 20,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g4",
+      "type": "group",
+      "label": "Community 4",
+      "x": 740,
+      "y": 480,
+      "width": 600,
+      "height": 400,
+      "color": "5"
+    },
+    {
+      "id": "n_dbt_001_create_tables",
+      "type": "file",
+      "file": "001_create_tables.sql.md",
+      "x": 760,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_dbt_001_create_tables_raw_trades",
+      "type": "file",
+      "file": "raw_trades.md",
+      "x": 960,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g5",
+      "type": "group",
+      "label": "Community 5",
+      "x": 1480,
+      "y": 480,
+      "width": 600,
+      "height": 400,
+      "color": "6"
+    },
+    {
+      "id": "n_dbt_002_create_feature_store",
+      "type": "file",
+      "file": "002_create_feature_store.sql.md",
+      "x": 1500,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_dbt_002_create_feature_store_feature_store",
+      "type": "file",
+      "file": "feature_store.md",
+      "x": 1700,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g6",
+      "type": "group",
+      "label": "Community 6",
+      "x": 0,
+      "y": 960,
+      "width": 600,
+      "height": 400,
+      "color": "1"
+    },
+    {
+      "id": "n_dbt_003_alter_feature_store",
+      "type": "file",
+      "file": "003_alter_feature_store.sql.md",
+      "x": 20,
+      "y": 1040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g7",
+      "type": "group",
+      "label": "Community 7",
+      "x": 740,
+      "y": 960,
+      "width": 600,
+      "height": 400,
+      "color": "2"
+    },
+    {
+      "id": "n_dbt_004_alter_feature_store",
+      "type": "file",
+      "file": "004_alter_feature_store.sql.md",
+      "x": 760,
+      "y": 1040,
+      "width": 180,
+      "height": 60
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_ingestion_binance_producer_on_close_ingestion_binance_producer",
+      "fromNode": "n_ingestion_binance_producer_on_close",
+      "toNode": "n_ingestion_binance_producer",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_ingestion_binance_producer_on_close_ingestion_binance_producer_run",
+      "fromNode": "n_ingestion_binance_producer_on_close",
+      "toNode": "n_ingestion_binance_producer_run",
+      "label": "indirect_call [INFERRED]"
+    },
+    {
+      "id": "e_ingestion_binance_producer_on_error_ingestion_binance_producer",
+      "fromNode": "n_ingestion_binance_producer_on_error",
+      "toNode": "n_ingestion_binance_producer",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_ingestion_binance_producer_on_error_ingestion_binance_producer_run",
+      "fromNode": "n_ingestion_binance_producer_on_error",
+      "toNode": "n_ingestion_binance_producer_run",
+      "label": "indirect_call [INFERRED]"
+    },
+    {
+      "id": "e_ingestion_binance_producer_on_message_ingestion_binance_producer",
+      "fromNode": "n_ingestion_binance_producer_on_message",
+      "toNode": "n_ingestion_binance_producer",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_ingestion_binance_producer_on_message_ingestion_binance_producer_run",
+      "fromNode": "n_ingestion_binance_producer_on_message",
+      "toNode": "n_ingestion_binance_producer_run",
+      "label": "indirect_call [INFERRED]"
+    },
+    {
+      "id": "e_ingestion_binance_producer_run_ingestion_binance_producer",
+      "fromNode": "n_ingestion_binance_producer_run",
+      "toNode": "n_ingestion_binance_producer",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_spark_features_price_velocity_spark_features",
+      "fromNode": "n_spark_features_price_velocity",
+      "toNode": "n_spark_features",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_spark_features_price_velocity_spark_features_rationale_7",
+      "fromNode": "n_spark_features_price_velocity",
+      "toNode": "n_spark_features_rationale_7",
+      "label": "rationale_for [EXTRACTED]"
+    },
+    {
+      "id": "e_spark_features_volume_surge_zscore_spark_features",
+      "fromNode": "n_spark_features_volume_surge_zscore",
+      "toNode": "n_spark_features",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_spark_features_volume_surge_zscore_spark_features_rationale_19",
+      "fromNode": "n_spark_features_volume_surge_zscore",
+      "toNode": "n_spark_features_rationale_19",
+      "label": "rationale_for [EXTRACTED]"
+    },
+    {
+      "id": "e_kafka_consumer_get_conn_kafka_consumer_run",
+      "fromNode": "n_kafka_consumer_get_conn",
+      "toNode": "n_kafka_consumer_run",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_kafka_consumer_get_conn_kafka_consumer",
+      "fromNode": "n_kafka_consumer_get_conn",
+      "toNode": "n_kafka_consumer",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_kafka_consumer_run_kafka_consumer",
+      "fromNode": "n_kafka_consumer_run",
+      "toNode": "n_kafka_consumer",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_spark_streaming_job_main_spark_streaming_job",
+      "fromNode": "n_spark_streaming_job_main",
+      "toNode": "n_spark_streaming_job",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_spark_streaming_job_main_spark_streaming_job_write_batch_to_postgres",
+      "fromNode": "n_spark_streaming_job_main",
+      "toNode": "n_spark_streaming_job_write_batch_to_postgres",
+      "label": "indirect_call [INFERRED]"
+    },
+    {
+      "id": "e_spark_streaming_job_write_batch_to_postgres_spark_streaming_job",
+      "fromNode": "n_spark_streaming_job_write_batch_to_postgres",
+      "toNode": "n_spark_streaming_job",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_dbt_001_create_tables_dbt_001_create_tables_raw_trades",
+      "fromNode": "n_dbt_001_create_tables",
+      "toNode": "n_dbt_001_create_tables_raw_trades",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_dbt_002_create_feature_store_dbt_002_create_feature_store_feature_store",
+      "fromNode": "n_dbt_002_create_feature_store",
+      "toNode": "n_dbt_002_create_feature_store_feature_store",
+      "label": "contains [EXTRACTED]"
+    }
+  ]
+}
