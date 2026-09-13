@@ -1,6 +1,6 @@
 # ingestion/binance_producer.py
-import websocket, json, os
-from kafka import KafkaProducer
+import websocket, json, os 
+from kafka import KafkaProducer 
 from dotenv import load_dotenv
 
 load_dotenv()

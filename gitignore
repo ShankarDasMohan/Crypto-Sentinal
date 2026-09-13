@@ -58,3 +58,6 @@ Thumbs.db
 # --- Logs ---
 *.log
 logs/
+
+# --- Local Artifacts & Graphify ---
+graphify-out/

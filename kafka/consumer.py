@@ -30,7 +30,7 @@ def run():
     consumer = KafkaConsumer(
         KAFKA_TOPIC,
         bootstrap_servers=KAFKA_BROKER,
-        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
+        value_deserializer=lambda v: v,  # raw bytes — parse inside the loop, not here
         auto_offset_reset="earliest",
         enable_auto_commit=True,
         group_id="raw_trades_writer"
@@ -42,9 +42,9 @@ def run():
 
     count = 0
     for msg in consumer:
-        payload = msg.value
-        data = payload.get("data", payload)  # handles both wrapped and unwrapped messages
         try:
+            payload = json.loads(msg.value.decode("utf-8"))
+            data = payload.get("data", payload)  # handles both wrapped and unwrapped messages
             trade_time = datetime.fromtimestamp(data["T"] / 1000, tz=timezone.utc)
             cur.execute(INSERT_SQL, (
                 data["s"],
@@ -58,7 +58,7 @@ def run():
             if count % 100 == 0:
                 print(f"Inserted {count} trades")
         except Exception as e:
-            print(f"Insert error: {e} | payload: {payload}")
+            print(f"Insert error: {e} | raw: {msg.value}")
 
 if __name__ == "__main__":
     run()
