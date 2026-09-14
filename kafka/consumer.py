@@ -1,9 +1,12 @@
 # kafka/consumer.py
-import json, os
+import json
+import os
 from datetime import datetime, timezone
-from kafka import KafkaConsumer
+
 import psycopg2
 from dotenv import load_dotenv
+
+from kafka import KafkaConsumer
 
 load_dotenv()
 KAFKA_TOPIC = "binance_trades"

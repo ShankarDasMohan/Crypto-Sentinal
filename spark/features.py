@@ -3,6 +3,7 @@
 
 import statistics
 
+
 def price_velocity(prices: list[float], window_seconds: float) -> float:
     """
     Feature 1: rate of change of price over a window.

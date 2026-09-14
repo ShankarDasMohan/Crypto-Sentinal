@@ -1,27 +1,27 @@
 {
   "ingestion/binance_producer.py": {
-    "mtime": 1786969615.1469512,
-    "seen": 1789271788.969478,
-    "ast_hash": "c4f68063dd87cc02206e679b988af303",
-    "semantic_hash": "c4f68063dd87cc02206e679b988af303"
+    "mtime": 1789357290.441669,
+    "seen": 1789357629.194442,
+    "ast_hash": "62b1187e42f97aa316d9035dd29f2076",
+    "semantic_hash": ""
   },
   "kafka/consumer.py": {
-    "mtime": 1784551810.4358947,
-    "seen": 1789271788.969483,
-    "ast_hash": "f2292e5fa98ea85166e359b881360ba8",
-    "semantic_hash": "f2292e5fa98ea85166e359b881360ba8"
+    "mtime": 1789357310.235053,
+    "seen": 1789357629.194442,
+    "ast_hash": "49756be5a2899cc04bae8f960fb78654",
+    "semantic_hash": ""
   },
   "spark/features.py": {
-    "mtime": 1784551813.642169,
-    "seen": 1789271788.969484,
-    "ast_hash": "e0302aeefd8a9d959d8b8d01866e4c42",
-    "semantic_hash": "e0302aeefd8a9d959d8b8d01866e4c42"
+    "mtime": 1789357329.9462485,
+    "seen": 1789357629.194443,
+    "ast_hash": "deac38696a2ade891eed06cf6a4b32e6",
+    "semantic_hash": ""
   },
   "spark/streaming_job.py": {
-    "mtime": 1789139412.635995,
-    "seen": 1789271788.969485,
-    "ast_hash": "c98d7fdd66f850c63111c4d2353e5e95",
-    "semantic_hash": "c98d7fdd66f850c63111c4d2353e5e95"
+    "mtime": 1789357301.3553693,
+    "seen": 1789357629.194443,
+    "ast_hash": "9917eb9949d411300e00657678e2722f",
+    "semantic_hash": ""
   },
   "dbt/001_create_tables.sql": {
     "mtime": 1784451286.7274075,
@@ -46,5 +46,101 @@
     "seen": 1789272019.0773,
     "ast_hash": "93ab794646a0bc39965787bd2780b367",
     "semantic_hash": "93ab794646a0bc39965787bd2780b367"
+  },
+  ".trae/rules/git-commit-message.md": {
+    "mtime": 1789295615.960431,
+    "seen": 1789357629.194444,
+    "ast_hash": "fada058f8d459a7129aed0f52be6c289",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1784300992.3316927,
+    "seen": 1789357629.1944451,
+    "ast_hash": "4b1201ecc7bbd6df5a1bce47f7c1c9be",
+    "semantic_hash": ""
+  },
+  "airflow/dags/New Text Document.txt": {
+    "mtime": 1784300992.3318658,
+    "seen": 1789357629.1944451,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "api/New Text Document.txt": {
+    "mtime": 1784300992.3320014,
+    "seen": 1789357629.194446,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "dashboard/New Text Document.txt": {
+    "mtime": 1784300992.3321285,
+    "seen": 1789357629.194446,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "dbt/models/marts/New Text Document.txt": {
+    "mtime": 1784300992.3323364,
+    "seen": 1789357629.194447,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "dbt/models/staging/New Text Document.txt": {
+    "mtime": 1784300992.3324475,
+    "seen": 1789357629.194447,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "dbt/tests/dbt_test_log.md": {
+    "mtime": 1784528113.314574,
+    "seen": 1789357629.1944478,
+    "ast_hash": "e57e4e630191c0ab02e4423a7e7dc41e",
+    "semantic_hash": ""
+  },
+  "dbt/tests/packages.yml": {
+    "mtime": 1784528113.3146694,
+    "seen": 1789357629.1944478,
+    "ast_hash": "99ad0b7c7967ae22c9fb424f2ebee273",
+    "semantic_hash": ""
+  },
+  "dbt/tests/schema (1).yml": {
+    "mtime": 1784528113.3147497,
+    "seen": 1789357629.1944478,
+    "ast_hash": "a373ee5f028c7e07bf6331c427cac106",
+    "semantic_hash": ""
+  },
+  "dbt/tests/schema.yml": {
+    "mtime": 1784528113.3148344,
+    "seen": 1789357629.194449,
+    "ast_hash": "1c93f11843b31c701440f071f739356f",
+    "semantic_hash": ""
+  },
+  "dbt/tests/sources.yml": {
+    "mtime": 1784528113.3149192,
+    "seen": 1789357629.194449,
+    "ast_hash": "d2728e669be228ff16080bf3922983f5",
+    "semantic_hash": ""
+  },
+  "docker-compose.yml": {
+    "mtime": 1784450614.356601,
+    "seen": 1789357629.19445,
+    "ast_hash": "953b60a0fe2bb4ae41c7dcdfc9927828",
+    "semantic_hash": ""
+  },
+  "ml/New Text Document.txt": {
+    "mtime": 1784300992.3332286,
+    "seen": 1789357629.19445,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "mlflow/New Text Document.txt": {
+    "mtime": 1784300992.3333395,
+    "seen": 1789357629.1944509,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "tests/New Text Document.txt": {
+    "mtime": 1784300992.3337626,
+    "seen": 1789357629.1944509,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
   }
 }

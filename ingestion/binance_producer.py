@@ -1,7 +1,11 @@
 # ingestion/binance_producer.py
-import websocket, json, os 
-from kafka import KafkaProducer 
+import json
+import os
+
+import websocket
 from dotenv import load_dotenv
+
+from kafka import KafkaProducer
 
 load_dotenv()
 SYMBOLS = ["btcusdt", "ethusdt"]

@@ -1,14 +1,21 @@
 # spark/streaming_job.py
 import os
 import statistics
+
 import pandas as pd
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col
+from pyspark.sql.functions import col, from_json
+from pyspark.sql.streaming.state import GroupState, GroupStateTimeout
 from pyspark.sql.types import (
-    StructType, StructField, StringType, DoubleType, LongType,
-    BooleanType, TimestampType, ArrayType
+    ArrayType,
+    BooleanType,
+    DoubleType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
 )
-from pyspark.sql.streaming.state import GroupStateTimeout, GroupState
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 KAFKA_TOPIC = "binance_trades"
