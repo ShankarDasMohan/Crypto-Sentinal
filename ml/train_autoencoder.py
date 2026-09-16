@@ -1,32 +1,29 @@
 """
 ml/train_autoencoder.py
 
-Trains a small per-symbol Autoencoder on feature_store data as the
-second ensemble member alongside the Isolation Forest. Reconstruction
-error becomes the anomaly signal, converted to a 0-100 severity using
-the same min-max approach as the forest so both models are comparable.
+Trains a small per-symbol Autoencoder on feature_store data, now with
+a TIME-BASED train/test split. For an autoencoder specifically, the
+held-out test reconstruction loss is a meaningful, direct signal of
+whether it learned real structure or just memorized the training rows
+— unlike the Isolation Forest, this isn't just a nice-to-have.
 
 Design assumptions (flag to reviewer if these don't match project intent):
-  - One model PER SYMBOL, same reasoning as the Isolation Forest script.
-  - Same feature set, same TRAINING_CUTOFF_UTC filter (reused from
-    train_isolation_forest.py — keep these two in sync manually for now).
-  - Architecture: dense encoder-decoder, 4 -> 2 -> 4. Small on purpose —
-    with ~67-90 training rows, a bigger network would just memorize
-    rather than learn a compressed "normal" representation.
-  - Features are standardized (zero mean, unit variance) before training,
-    since MSE reconstruction loss is scale-sensitive and price_velocity /
-    trade_frequency / volume_surge_z / spread_anomaly_score are on very
-    different raw scales.
-  - Severity = min-max scaled per-row reconstruction MSE, scaled against
-    this training set's own error range (same convention as the forest).
-  - Not enough data yet for a held-out validation split (uses all
-    training rows for both fit and reconstruction-error scoring) —
-    flagged as a known limitation, not something to silently ignore
-    once more data exists.
+  - One model PER SYMBOL, same reasoning as before.
+  - Time-based split (earliest -> train, latest -> test), same reasoning
+    as the forest script — no random shuffle for time-series data.
+  - TEST_SPLIT_FRACTION = 0.2, MIN_ROWS_FOR_SPLIT = 150 (same floors as
+    the forest script, kept in sync deliberately).
+  - Feature scaler (StandardScaler) is fit on TRAIN ONLY, then applied
+    to test — fitting on all data (train+test) would leak test-set
+    statistics into training, defeating the point of the split.
+  - Severity scaler is also fit on TRAIN reconstruction error only;
+    test rows are scored through that same scaler, same reasoning as
+    the forest script's test-severity approach.
+  - Below MIN_ROWS_FOR_SPLIT: falls back to training on everything, no
+    test evaluation, and says so loudly rather than silently.
 
 Run from repo root:
     source .venv/bin/activate
-    pip install tensorflow  # if not already installed
     python ml/train_autoencoder.py
 """
 
@@ -35,7 +32,6 @@ from datetime import datetime, timezone
 
 import joblib
 import mlflow
-import mlflow.tensorflow
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
@@ -47,7 +43,7 @@ from tensorflow.keras import layers
 DB_USER = os.getenv("POSTGRES_USER", "csuser")
 DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "cspass")
 DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-DB_PORT = os.getenv("POSTGRES_PORT", "5432")  # verify actual port before running
+DB_PORT = os.getenv("POSTGRES_PORT", "5432")
 DB_NAME = os.getenv("POSTGRES_DB", "cryptosentinel")
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5050")
@@ -63,11 +59,12 @@ FEATURE_COLUMNS = [
     "spread_anomaly_score",
 ]
 
-MIN_ROWS_TO_TRAIN = 50  # same floor as the forest script — keep in sync
+MIN_ROWS_FOR_SPLIT = 150
+MIN_ROWS_TO_TRAIN = 50
+TEST_SPLIT_FRACTION = 0.2
 
-# Same cutoff as train_isolation_forest.py — update both together if you
-# re-run after another restart. Set to None to use full history.
 TRAINING_CUTOFF_UTC = "2026-09-14 15:17:00+00"
+TRAINING_CUTOFF_END_UTC = None  # widen as more clean continuous data accumulates
 
 EPOCHS = 100
 BATCH_SIZE = 8
@@ -79,11 +76,15 @@ def get_engine():
 
 
 def load_feature_data(engine, symbol: str) -> pd.DataFrame:
-    cutoff_clause = ""
+    cutoff_clauses = []
     params = {"symbol": symbol}
     if TRAINING_CUTOFF_UTC:
-        cutoff_clause = "AND window_start >= %(cutoff)s"
-        params["cutoff"] = TRAINING_CUTOFF_UTC
+        cutoff_clauses.append("window_start >= %(cutoff_start)s")
+        params["cutoff_start"] = TRAINING_CUTOFF_UTC
+    if TRAINING_CUTOFF_END_UTC:
+        cutoff_clauses.append("window_start < %(cutoff_end)s")
+        params["cutoff_end"] = TRAINING_CUTOFF_END_UTC
+    cutoff_clause = ("AND " + " AND ".join(cutoff_clauses)) if cutoff_clauses else ""
 
     query = f"""
         SELECT window_start, window_end, {", ".join(FEATURE_COLUMNS)}
@@ -98,7 +99,16 @@ def load_feature_data(engine, symbol: str) -> pd.DataFrame:
     after = len(df)
     if before != after:
         print(f"[{symbol}] dropped {before - after} rows with NULL features")
-    return df
+    return df.reset_index(drop=True)
+
+
+def split_train_test(df: pd.DataFrame):
+    if len(df) < MIN_ROWS_FOR_SPLIT:
+        return df, None, False
+    split_idx = int(len(df) * (1 - TEST_SPLIT_FRACTION))
+    train_df = df.iloc[:split_idx].reset_index(drop=True)
+    test_df = df.iloc[split_idx:].reset_index(drop=True)
+    return train_df, test_df, True
 
 
 def build_autoencoder(n_features: int) -> keras.Model:
@@ -110,32 +120,37 @@ def build_autoencoder(n_features: int) -> keras.Model:
     return model
 
 
-def train_symbol_model(symbol: str, df: pd.DataFrame):
-    X_raw = df[FEATURE_COLUMNS].values
+def fit_and_score(train_df: pd.DataFrame):
+    X_train_raw = train_df[FEATURE_COLUMNS].values
 
     feature_scaler = StandardScaler()
-    X = feature_scaler.fit_transform(X_raw)
+    X_train = feature_scaler.fit_transform(X_train_raw)
 
-    model = build_autoencoder(n_features=X.shape[1])
-    history = model.fit(
-        X, X,
-        epochs=EPOCHS,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        verbose=0,
-    )
-    final_loss = history.history["loss"][-1]
+    model = build_autoencoder(n_features=X_train.shape[1])
+    history = model.fit(X_train, X_train, epochs=EPOCHS, batch_size=BATCH_SIZE, shuffle=True, verbose=0)
+    final_train_loss = history.history["loss"][-1]
 
-    reconstructed = model.predict(X, verbose=0)
-    per_row_mse = np.mean(np.square(X - reconstructed), axis=1)
+    reconstructed_train = model.predict(X_train, verbose=0)
+    train_mse = np.mean(np.square(X_train - reconstructed_train), axis=1)
 
     severity_scaler = MinMaxScaler(feature_range=(0, 100))
-    severity = severity_scaler.fit_transform(per_row_mse.reshape(-1, 1)).ravel()
+    train_severity = severity_scaler.fit_transform(train_mse.reshape(-1, 1)).ravel()
 
-    return model, feature_scaler, severity_scaler, severity, final_loss
+    return model, feature_scaler, severity_scaler, train_severity, final_train_loss
 
 
-def log_and_save(symbol: str, model, feature_scaler, severity_scaler, df, severity, final_loss):
+def score_with_fitted(model, feature_scaler, severity_scaler, df: pd.DataFrame):
+    X_raw = df[FEATURE_COLUMNS].values
+    X = feature_scaler.transform(X_raw)
+    reconstructed = model.predict(X, verbose=0)
+    per_row_mse = np.mean(np.square(X - reconstructed), axis=1)
+    severity = severity_scaler.transform(per_row_mse.reshape(-1, 1)).ravel()
+    return severity, per_row_mse
+
+
+def log_and_save(symbol: str, model, feature_scaler, severity_scaler,
+                  train_df, train_severity, final_train_loss,
+                  test_df, test_severity, test_mse, did_split: bool):
     model_path = os.path.join(MODEL_OUTPUT_DIR, f"autoencoder_{symbol}.keras")
     feature_scaler_path = os.path.join(MODEL_OUTPUT_DIR, f"ae_feature_scaler_{symbol}.joblib")
     severity_scaler_path = os.path.join(MODEL_OUTPUT_DIR, f"ae_severity_scaler_{symbol}.joblib")
@@ -149,22 +164,50 @@ def log_and_save(symbol: str, model, feature_scaler, severity_scaler, df, severi
         mlflow.log_param("architecture", "4-2-4 dense")
         mlflow.log_param("epochs", EPOCHS)
         mlflow.log_param("batch_size", BATCH_SIZE)
-        mlflow.log_param("n_training_rows", len(df))
+        mlflow.log_param("n_training_rows", len(train_df))
+        mlflow.log_param("did_train_test_split", did_split)
         mlflow.log_param("feature_columns", ",".join(FEATURE_COLUMNS))
 
-        mlflow.log_metric("final_train_loss_mse", float(final_loss))
-        mlflow.log_metric("severity_min", float(severity.min()))
-        mlflow.log_metric("severity_max", float(severity.max()))
-        mlflow.log_metric("severity_mean", float(severity.mean()))
-        mlflow.log_metric("severity_p90", float(pd.Series(severity).quantile(0.9)))
+        mlflow.log_metric("final_train_loss_mse", float(final_train_loss))
+        mlflow.log_metric("train_severity_min", float(train_severity.min()))
+        mlflow.log_metric("train_severity_max", float(train_severity.max()))
+        mlflow.log_metric("train_severity_mean", float(train_severity.mean()))
+        mlflow.log_metric("train_severity_p90", float(pd.Series(train_severity).quantile(0.9)))
+
+        if did_split and test_severity is not None:
+            mlflow.log_param("n_test_rows", len(test_df))
+            mlflow.log_metric("test_loss_mse_mean", float(test_mse.mean()))
+            mlflow.log_metric("test_severity_min", float(test_severity.min()))
+            mlflow.log_metric("test_severity_max", float(test_severity.max()))
+            mlflow.log_metric("test_severity_mean", float(test_severity.mean()))
+            mlflow.log_metric("test_severity_p90", float(pd.Series(test_severity).quantile(0.9)))
+            # The key generalization signal: how much worse (or not) is
+            # reconstruction on data the model never saw during training.
+            loss_ratio = float(test_mse.mean() / (final_train_loss + 1e-9))
+            mlflow.log_metric("test_train_loss_ratio", loss_ratio)
 
         mlflow.log_artifact(model_path, artifact_path="autoencoder_model")
         mlflow.log_artifact(feature_scaler_path, artifact_path="feature_scaler")
         mlflow.log_artifact(severity_scaler_path, artifact_path="severity_scaler")
 
     print(f"[{symbol}] model saved -> {model_path}")
-    print(f"[{symbol}] final training loss (MSE): {final_loss:.4f}")
-    print(f"[{symbol}] severity range: {severity.min():.1f} - {severity.max():.1f} (mean {severity.mean():.1f})")
+    print(f"[{symbol}] TRAIN loss (MSE): {final_train_loss:.4f} | "
+          f"severity mean {train_severity.mean():.1f}, p90 {pd.Series(train_severity).quantile(0.9):.1f}")
+    if did_split and test_severity is not None:
+        loss_ratio = test_mse.mean() / (final_train_loss + 1e-9)
+        print(f"[{symbol}] TEST  loss (MSE): {test_mse.mean():.4f} | "
+              f"severity mean {test_severity.mean():.1f}, p90 {pd.Series(test_severity).quantile(0.9):.1f}")
+        print(f"[{symbol}] Test/train loss ratio: {loss_ratio:.2f}x")
+        if loss_ratio > 3:
+            print(f"[{symbol}] [Flag] Test reconstruction loss is {loss_ratio:.1f}x the training loss — "
+                  f"the model may be overfitting to the training window rather than learning general "
+                  f"'normal' patterns. With only ~{len(train_df)} training rows, some of this is expected; "
+                  f"worth re-checking once more data is available.")
+        else:
+            print(f"[{symbol}] Test loss reasonably close to train loss — model generalizes okay on this split.")
+    else:
+        print(f"[{symbol}] [Flag] No train/test split performed — only {len(train_df)} rows available "
+              f"(< {MIN_ROWS_FOR_SPLIT} floor). Severity reflects fit-to-training-data only.")
 
 
 def main():
@@ -187,9 +230,21 @@ def main():
             print(f"[{symbol}] only {len(df)} usable rows (< {MIN_ROWS_TO_TRAIN} floor) — skipping")
             continue
 
-        print(f"[{symbol}] training autoencoder on {len(df)} rows...")
-        model, feature_scaler, severity_scaler, severity, final_loss = train_symbol_model(symbol, df)
-        log_and_save(symbol, model, feature_scaler, severity_scaler, df, severity, final_loss)
+        train_df, test_df, did_split = split_train_test(df)
+        if did_split:
+            print(f"[{symbol}] {len(df)} total rows -> train/test split: {len(train_df)}/{len(test_df)}")
+        else:
+            print(f"[{symbol}] {len(df)} total rows -> no split, training on all {len(train_df)}")
+
+        model, feature_scaler, severity_scaler, train_severity, final_train_loss = fit_and_score(train_df)
+
+        test_severity, test_mse = None, None
+        if did_split:
+            test_severity, test_mse = score_with_fitted(model, feature_scaler, severity_scaler, test_df)
+
+        log_and_save(symbol, model, feature_scaler, severity_scaler,
+                     train_df, train_severity, final_train_loss,
+                     test_df, test_severity, test_mse, did_split)
 
     print("Done.")
 

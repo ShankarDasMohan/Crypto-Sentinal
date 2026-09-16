@@ -2,22 +2,25 @@
 ml/train_isolation_forest.py
 
 Trains a separate Isolation Forest per symbol on feature_store data,
-converts raw anomaly scores into a 0-100 severity, logs each run to
-MLflow, and saves the fitted model + scaler with joblib.
+now with a TIME-BASED train/test split so severity on held-out data
+can be reported honestly, not just on the rows the model was fit on.
 
 Design assumptions (flag to reviewer if these don't match project intent):
-  - One model PER SYMBOL, not one shared model. price_velocity and
-    trade_frequency scales differ a lot between BTCUSDT and ETHUSDT,
-    so a shared model would let one symbol's noise dominate.
-  - Rows with NULL in any feature column are dropped before training
-    (expected for the first ~30 buckets while rolling history warms up).
-  - Severity 0-100 = inverted, min-max-scaled decision_function output,
-    scaled against the TRAINING set's own score range. This means
-    severity is relative to what this symbol's history looked like at
-    training time, not an absolute cross-symbol scale.
-  - contamination="auto" (sklearn default) — no assumption made about
-    what fraction of historical data is "actually" anomalous, since
-    that number isn't known and shouldn't be guessed.
+  - One model PER SYMBOL, not one shared model — scale differences.
+  - Split is TIME-BASED, not random shuffle: earliest rows -> train,
+    latest rows -> test. Random shuffling would leak future information
+    into training for time-series data like this — not appropriate here.
+  - TEST_SPLIT_FRACTION = 0.2 (last 20% of the time range held out).
+  - MIN_ROWS_FOR_SPLIT floor: below this, splitting leaves too few rows
+    on either side to mean anything, so the script falls back to
+    training on all data with NO test evaluation, and says so loudly —
+    doesn't silently pretend a split happened when it didn't.
+  - Severity 0-100 via inverted decision_function, min-max scaled
+    against the TRAINING set's range only. Test-set severities are
+    scored using that same scaler (not refit), which is the honest way
+    to see how the model treats data it never trained on — a test row
+    with severity >100 or <0 e.g. would mean it looked more extreme
+    than anything in the training set, worth flagging when logged.
 
 Run from repo root:
     source .venv/bin/activate
@@ -25,26 +28,22 @@ Run from repo root:
 """
 
 import os
-import sys
 from datetime import datetime, timezone
 
 import joblib
 import mlflow
 import mlflow.sklearn
+import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import MinMaxScaler
 from sqlalchemy import create_engine
 
-# --- Config -----------------------------------------------------------
-# Pull from environment where possible so this doesn't hardcode secrets
-# that already live in .env. Adjust var names if your .env uses different
-# keys — these are guesses based on the compose file creds, not confirmed
-# against an actual .env file. [Unverified]
+# --- Config -------------------------------------------------------------
 DB_USER = os.getenv("POSTGRES_USER", "csuser")
 DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "cspass")
 DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-DB_PORT = os.getenv("POSTGRES_PORT", "5432")  # verify actual port before running — this has flip-flopped before
+DB_PORT = os.getenv("POSTGRES_PORT", "5432")
 DB_NAME = os.getenv("POSTGRES_DB", "cryptosentinel")
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5050")
@@ -60,13 +59,17 @@ FEATURE_COLUMNS = [
     "spread_anomaly_score",
 ]
 
-MIN_ROWS_TO_TRAIN = 50  # arbitrary floor — below this a forest isn't meaningful; raise/lower as needed
+# Below this, no split — not enough rows to make train/test meaningful.
+MIN_ROWS_FOR_SPLIT = 150
+# Below this even without a split, skip training entirely (same floor as before).
+MIN_ROWS_TO_TRAIN = 50
 
-# Filters training data to only the current honest continuous streaming run,
-# excluding older fragmented sessions (restarts reset rolling-history state,
-# so mixing old fragments with a fresh continuous block teaches noise).
-# Set to None to use full history again once you trust it's all continuous.
-TRAINING_CUTOFF_UTC = "2026-09-14 15:17:00+00"  # start of this session's clean run — update if you re-run later
+TEST_SPLIT_FRACTION = 0.2
+
+# Set either to None to drop that bound. Update after each fresh honest
+# continuous run — these currently scope to the Sep 14 15:17-16:59 stretch.
+TRAINING_CUTOFF_UTC = "2026-09-14 15:17:00+00"
+TRAINING_CUTOFF_END_UTC = None  # None = no upper bound; widen this as more clean data accumulates
 
 
 def get_engine():
@@ -75,11 +78,15 @@ def get_engine():
 
 
 def load_feature_data(engine, symbol: str) -> pd.DataFrame:
-    cutoff_clause = ""
+    cutoff_clauses = []
     params = {"symbol": symbol}
     if TRAINING_CUTOFF_UTC:
-        cutoff_clause = "AND window_start >= %(cutoff)s"
-        params["cutoff"] = TRAINING_CUTOFF_UTC
+        cutoff_clauses.append("window_start >= %(cutoff_start)s")
+        params["cutoff_start"] = TRAINING_CUTOFF_UTC
+    if TRAINING_CUTOFF_END_UTC:
+        cutoff_clauses.append("window_start < %(cutoff_end)s")
+        params["cutoff_end"] = TRAINING_CUTOFF_END_UTC
+    cutoff_clause = ("AND " + " AND ".join(cutoff_clauses)) if cutoff_clauses else ""
 
     query = f"""
         SELECT window_start, window_end, {", ".join(FEATURE_COLUMNS)}
@@ -93,35 +100,46 @@ def load_feature_data(engine, symbol: str) -> pd.DataFrame:
     df = df.dropna(subset=FEATURE_COLUMNS)
     after = len(df)
     if before != after:
-        print(f"[{symbol}] dropped {before - after} rows with NULL features "
-              f"(likely early rolling-history warmup rows)")
-    return df
+        print(f"[{symbol}] dropped {before - after} rows with NULL features")
+    return df.reset_index(drop=True)
 
 
-def train_symbol_model(symbol: str, df: pd.DataFrame):
-    X = df[FEATURE_COLUMNS].values
+def split_train_test(df: pd.DataFrame):
+    """Time-based split: earliest rows train, latest rows test. Returns
+    (train_df, test_df, did_split: bool)."""
+    if len(df) < MIN_ROWS_FOR_SPLIT:
+        return df, None, False
+    split_idx = int(len(df) * (1 - TEST_SPLIT_FRACTION))
+    train_df = df.iloc[:split_idx].reset_index(drop=True)
+    test_df = df.iloc[split_idx:].reset_index(drop=True)
+    return train_df, test_df, True
 
-    model = IsolationForest(
-        n_estimators=200,
-        contamination="auto",
-        random_state=42,
-        n_jobs=-1,
-    )
-    model.fit(X)
 
-    # decision_function: higher = more normal, lower/negative = more anomalous.
-    # Invert so higher = more anomalous, then min-max scale to 0-100 against
-    # this training set's own range.
-    raw_scores = model.decision_function(X)
-    inverted = -raw_scores  # now higher = more anomalous
+def fit_and_score(train_df: pd.DataFrame):
+    X_train = train_df[FEATURE_COLUMNS].values
+
+    model = IsolationForest(n_estimators=200, contamination="auto", random_state=42, n_jobs=-1)
+    model.fit(X_train)
+
+    raw_train_scores = model.decision_function(X_train)
+    inverted_train = -raw_train_scores
 
     scaler = MinMaxScaler(feature_range=(0, 100))
-    severity = scaler.fit_transform(inverted.reshape(-1, 1)).ravel()
+    train_severity = scaler.fit_transform(inverted_train.reshape(-1, 1)).ravel()
 
-    return model, scaler, severity
+    return model, scaler, train_severity
 
 
-def log_and_save(symbol: str, model, scaler, df: pd.DataFrame, severity):
+def score_with_fitted(model, scaler, df: pd.DataFrame):
+    X = df[FEATURE_COLUMNS].values
+    raw_scores = model.decision_function(X)
+    inverted = -raw_scores
+    severity = scaler.transform(inverted.reshape(-1, 1)).ravel()
+    return severity
+
+
+def log_and_save(symbol: str, model, scaler, train_df, train_severity,
+                  test_df, test_severity, did_split: bool):
     model_path = os.path.join(MODEL_OUTPUT_DIR, f"isolation_forest_{symbol}.joblib")
     scaler_path = os.path.join(MODEL_OUTPUT_DIR, f"severity_scaler_{symbol}.joblib")
     joblib.dump(model, model_path)
@@ -131,23 +149,42 @@ def log_and_save(symbol: str, model, scaler, df: pd.DataFrame, severity):
         mlflow.log_param("symbol", symbol)
         mlflow.log_param("n_estimators", model.n_estimators)
         mlflow.log_param("contamination", model.contamination)
-        mlflow.log_param("n_training_rows", len(df))
+        mlflow.log_param("n_training_rows", len(train_df))
+        mlflow.log_param("did_train_test_split", did_split)
         mlflow.log_param("feature_columns", ",".join(FEATURE_COLUMNS))
 
-        mlflow.log_metric("severity_min", float(severity.min()))
-        mlflow.log_metric("severity_max", float(severity.max()))
-        mlflow.log_metric("severity_mean", float(severity.mean()))
-        # top-of-training-set anomaly rate at a fixed 90th percentile cut,
-        # just as a training-time sanity signal, not a production threshold
-        mlflow.log_metric("severity_p90", float(pd.Series(severity).quantile(0.9)))
+        mlflow.log_metric("train_severity_min", float(train_severity.min()))
+        mlflow.log_metric("train_severity_max", float(train_severity.max()))
+        mlflow.log_metric("train_severity_mean", float(train_severity.mean()))
+        mlflow.log_metric("train_severity_p90", float(pd.Series(train_severity).quantile(0.9)))
+
+        if did_split and test_severity is not None:
+            mlflow.log_param("n_test_rows", len(test_df))
+            mlflow.log_metric("test_severity_min", float(test_severity.min()))
+            mlflow.log_metric("test_severity_max", float(test_severity.max()))
+            mlflow.log_metric("test_severity_mean", float(test_severity.mean()))
+            mlflow.log_metric("test_severity_p90", float(pd.Series(test_severity).quantile(0.9)))
+            mean_shift = float(test_severity.mean() - train_severity.mean())
+            mlflow.log_metric("test_vs_train_mean_shift", mean_shift)
 
         mlflow.sklearn.log_model(model, artifact_path="isolation_forest_model")
         mlflow.log_artifact(scaler_path, artifact_path="severity_scaler")
 
     print(f"[{symbol}] model saved -> {model_path}")
-    print(f"[{symbol}] scaler saved -> {scaler_path}")
-    print(f"[{symbol}] severity range this training set: "
-          f"{severity.min():.1f} - {severity.max():.1f} (mean {severity.mean():.1f})")
+    print(f"[{symbol}] TRAIN severity: {train_severity.min():.1f}-{train_severity.max():.1f} "
+          f"(mean {train_severity.mean():.1f}, p90 {pd.Series(train_severity).quantile(0.9):.1f})")
+    if did_split and test_severity is not None:
+        print(f"[{symbol}] TEST  severity: {test_severity.min():.1f}-{test_severity.max():.1f} "
+              f"(mean {test_severity.mean():.1f}, p90 {pd.Series(test_severity).quantile(0.9):.1f})")
+        shift = test_severity.mean() - train_severity.mean()
+        if abs(shift) > 15:
+            print(f"[{symbol}] [Flag] Test mean differs from train mean by {shift:+.1f} points — "
+                  f"held-out data looks meaningfully different from training data. Worth investigating "
+                  f"whether that's a real regime shift or just small-sample noise.")
+    else:
+        print(f"[{symbol}] [Flag] No train/test split performed — only {len(train_df)} rows available "
+              f"(< {MIN_ROWS_FOR_SPLIT} floor). Severity above reflects fit-to-training-data only, "
+              f"not validated on unseen data yet.")
 
 
 def main():
@@ -155,25 +192,34 @@ def main():
     mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
     engine = get_engine()
-
     symbols_df = pd.read_sql("SELECT DISTINCT symbol FROM feature_store", engine)
     symbols = symbols_df["symbol"].tolist()
 
     if not symbols:
-        print("No symbols found in feature_store. Is the streaming job running / has it written any rows?")
-        sys.exit(1)
+        print("No symbols found in feature_store.")
+        return
 
     print(f"Found symbols in feature_store: {symbols}")
 
     for symbol in symbols:
         df = load_feature_data(engine, symbol)
         if len(df) < MIN_ROWS_TO_TRAIN:
-            print(f"[{symbol}] only {len(df)} usable rows (< {MIN_ROWS_TO_TRAIN} floor) — skipping for now")
+            print(f"[{symbol}] only {len(df)} usable rows (< {MIN_ROWS_TO_TRAIN} floor) — skipping")
             continue
 
-        print(f"[{symbol}] training on {len(df)} rows...")
-        model, scaler, severity = train_symbol_model(symbol, df)
-        log_and_save(symbol, model, scaler, df, severity)
+        train_df, test_df, did_split = split_train_test(df)
+        if did_split:
+            print(f"[{symbol}] {len(df)} total rows -> train/test split: {len(train_df)}/{len(test_df)}")
+        else:
+            print(f"[{symbol}] {len(df)} total rows -> no split, training on all {len(train_df)}")
+
+        model, scaler, train_severity = fit_and_score(train_df)
+
+        test_severity = None
+        if did_split:
+            test_severity = score_with_fitted(model, scaler, test_df)
+
+        log_and_save(symbol, model, scaler, train_df, train_severity, test_df, test_severity, did_split)
 
     print("Done.")
 
