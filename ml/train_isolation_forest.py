@@ -68,7 +68,7 @@ TEST_SPLIT_FRACTION = 0.2
 
 # Set either to None to drop that bound. Update after each fresh honest
 # continuous run — these currently scope to the Sep 14 15:17-16:59 stretch.
-TRAINING_CUTOFF_UTC = "2026-09-14 15:17:00+00"
+TRAINING_CUTOFF_UTC = None
 TRAINING_CUTOFF_END_UTC = None  # None = no upper bound; widen this as more clean data accumulates
 
 

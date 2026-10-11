@@ -43,7 +43,7 @@ def run():
         on_close=on_close
     )
     try:
-        ws.run_forever()
+        ws.run_forever(ping_interval=20, ping_timeout=10)
     except KeyboardInterrupt:
         global shutdown_requested
         shutdown_requested = True
