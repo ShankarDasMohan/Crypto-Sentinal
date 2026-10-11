@@ -52,6 +52,8 @@ FEATURE_COLUMNS = [
     "spread_anomaly_score",
 ]
 
+# Wide window = "score everything currently in feature_store". Narrow these only
+# if you want to analyse one specific stretch.
 TRAINING_CUTOFF_UTC = "2000-01-01 00:00:00+00"
 TRAINING_CUTOFF_END_UTC = "2100-01-01 00:00:00+00"
 
@@ -108,6 +110,7 @@ def analyze_symbol(symbol: str, df: pd.DataFrame, forest_sev: np.ndarray, ae_sev
     combined = (forest_sev + ae_sev) / 2.0
 
     result = df.copy()
+    result.insert(0, "symbol", symbol)  # previously missing: CSV rows could not be told apart by symbol
     result["forest_severity"] = forest_sev
     result["autoencoder_severity"] = ae_sev
     result["combined_severity"] = combined

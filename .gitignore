@@ -1,29 +1,27 @@
-# --- Secrets ---
+# --- Secrets (never commit) ---
 .env
-*.env.local
+.env.*
+!.env.example
+env
+.streamlit/secrets.toml
 
 # --- Python ---
 __pycache__/
 *.py[cod]
-*$py.class
 *.egg-info/
 .eggs/
-.Python
 build/
 dist/
-.venv/
+.venv*/
 venv/
-env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.venv-py39-backup/
 
 # --- Jupyter ---
 .ipynb_checkpoints/
 
 # --- MLflow ---
-mlflow/mlruns/
 mlruns/
 mlartifacts/
 
@@ -44,8 +42,15 @@ airflow/standalone_admin_password.txt
 spark-warehouse/
 derby.log
 metastore_db/
+.checkpoints/
 
-# --- Docker / DB volumes ---
+# --- Local data and generated files that should NOT be committed ---
+backups/
+ml/models_old_*/
+ml/models/ensemble_scored_rows.csv
+graphify-out/
+
+# --- Docker ---
 pgdata/
 *.pid
 
@@ -59,6 +64,3 @@ Thumbs.db
 # --- Logs ---
 *.log
 logs/
-
-# --- Local Artifacts & Graphify ---
-graphify-out/

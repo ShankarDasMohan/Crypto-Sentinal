@@ -222,8 +222,8 @@ def main():
         .config("spark.jars.packages",
                 "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.postgresql:postgresql:42.7.3") \
         .config("spark.sql.caseSensitive", "true") \
+        .config("spark.sql.session.timeZone", "UTC") \
         .getOrCreate()
-    spark.sparkContext.setLogLevel("WARN")
 
     raw = spark.readStream \
         .format("kafka") \
