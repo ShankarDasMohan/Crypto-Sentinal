@@ -58,6 +58,7 @@ TRAINING_CUTOFF_UTC = "2000-01-01 00:00:00+00"
 TRAINING_CUTOFF_END_UTC = "2100-01-01 00:00:00+00"
 
 TOP_N_TO_SHOW = 5
+WARMUP_ROWS_TO_DROP = 10  # keep in sync with the training scripts
 
 
 def get_engine():
@@ -79,7 +80,7 @@ def load_feature_data(engine, symbol: str) -> pd.DataFrame:
         "cutoff_start": TRAINING_CUTOFF_UTC,
         "cutoff_end": TRAINING_CUTOFF_END_UTC,
     })
-    return df.dropna(subset=FEATURE_COLUMNS)
+    return df.dropna(subset=FEATURE_COLUMNS).iloc[WARMUP_ROWS_TO_DROP:].reset_index(drop=True)
 
 
 def score_isolation_forest(symbol: str, df: pd.DataFrame) -> np.ndarray:

@@ -102,18 +102,24 @@ def score_once(engine, model_dir, cache):
     return total
 
 
-def export_csv(engine, path):
+def export_csv(engine, path, skip_warmup=10):
+    """Features + scores for the demo bundle. Skips each symbol's first `skip_warmup` scored windows:
+    their z-scores come from only a few history buckets and are unstable."""
     df = pd.read_sql(
-        f"""SELECT f.id AS feature_id, f.symbol, f.window_start, {', '.join('f.' + c for c in FEATURES)},
-                   s.forest_severity, s.autoencoder_severity, s.combined_severity
-            FROM feature_store f JOIN anomaly_scores s ON s.feature_id = f.id
-            ORDER BY f.window_start, f.symbol""",
+        f"""SELECT * FROM (
+                SELECT f.id AS feature_id, f.symbol, f.window_start, {', '.join('f.' + c for c in FEATURES)},
+                       s.forest_severity, s.autoencoder_severity, s.combined_severity,
+                       ROW_NUMBER() OVER (PARTITION BY f.symbol ORDER BY f.window_start) AS rn
+                FROM feature_store f JOIN anomaly_scores s ON s.feature_id = f.id
+            ) t
+            WHERE rn > {int(skip_warmup)}
+            ORDER BY window_start, symbol""",
         engine,
-    )
+    ).drop(columns="rn")
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(path, index=False)
-    print(f"Wrote {len(df)} rows to {path}")
+    print(f"Wrote {len(df)} rows to {path} (skipped first {skip_warmup} windows per symbol)")
 
 
 def main():
@@ -122,11 +128,12 @@ def main():
     ap.add_argument("--interval", type=int, default=60)
     ap.add_argument("--model-dir", default=str(DEFAULT_MODEL_DIR))
     ap.add_argument("--export-csv")
+    ap.add_argument("--skip-warmup", type=int, default=10)
     args = ap.parse_args()
 
     engine = get_engine()
     if args.export_csv:
-        export_csv(engine, args.export_csv)
+        export_csv(engine, args.export_csv, args.skip_warmup)
         return
 
     model_dir = Path(args.model_dir)

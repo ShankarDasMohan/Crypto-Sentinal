@@ -66,6 +66,11 @@ MIN_ROWS_TO_TRAIN = 50
 
 TEST_SPLIT_FRACTION = 0.2
 
+# The first rows of a fresh run compute z-scores from only 2-5 history buckets, which gives
+# extreme, unstable values (seen: spread_anomaly_score 58.9 in the first usable minute).
+# Skip them for training. 10 is a judgment call, not a tuned number.
+WARMUP_ROWS_TO_DROP = 10
+
 # Set either to None to drop that bound. Update after each fresh honest
 # continuous run — these currently scope to the Sep 14 15:17-16:59 stretch.
 TRAINING_CUTOFF_UTC = None
@@ -101,6 +106,8 @@ def load_feature_data(engine, symbol: str) -> pd.DataFrame:
     after = len(df)
     if before != after:
         print(f"[{symbol}] dropped {before - after} rows with NULL features")
+    df = df.iloc[WARMUP_ROWS_TO_DROP:]
+    print(f"[{symbol}] skipped first {WARMUP_ROWS_TO_DROP} usable rows (warm-up, unstable z-scores)")
     return df.reset_index(drop=True)
 
 
